@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enregistreur et transcription</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #eef2ff;
+  padding: 18px;
+  max-width: 600px;
+  margin: auto;
+}
+main {
+  background: white;
+  padding: 20px;
+  border-radius: 15px;
+}
+button {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin: 10px 0;
+  border: 0;
+  border-radius: 8px;
+  background: #2457d6;
+  color: white;
+  font-size: 16px;
+}
+button:disabled {
+  background: #999;
+}
+textarea {
+  width: 100%;
+  min-height: 180px;
+  box-sizing: border-box;
+  padding: 10px;
+  font-size: 16px;
+}
+#status {
+  padding: 10px;
+  background: #eef2ff;
+  border-radius: 8px;
+}
+</style>
+</head>
+<body>
+<main>
+<h2>Enregistreur et transcription</h2>
+<p id="status">Prêt. Autorise le microphone pour commencer.</p>
+
+<button id="start">Démarrer l'enregistrement</button>
+<button id="stop" disabled>Arrêter et transcrire</button>
+<button id="audio" disabled>Télécharger le son</button>
+<button id="downloadText" disabled>Télécharger le texte</button>
+
+<h3>Texte transcrit</h3>
+<textarea id="result" placeholder="La transcription apparaîtra ici..."></textarea>
+</main>
+
+<script>
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const audioBtn = document.getElementById("audio");
+const textBtn = document.getElementById("downloadText");
+const result = document.getElementById("result");
+const status = document.getElementById("status");
+
+let recorder;
+let stream;
+let chunks = [];
+let audioBlob = null;
+let recognition = null;
+let finalText = "";
+
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+
+startBtn.onclick = async () => {
+  try {
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      status.textContent = "Ton navigateur ne permet pas l'enregistrement audio.";
+      return;
+    }
+
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    chunks = [];
+    audioBlob = null;
+    finalText = "";
+    result.value = "";
+
+    recorder = new MediaRecorder(stream);
+
+    recorder.ondataavailable = event => {
+      if (event.data.size > 0) chunks.push(event.data);
+    };
+
+    recorder.onstop = () => {
+      audioBlob = new Blob(chunks, {
+        type: recorder.mimeType || "audio/webm"
+      });
+      audioBtn.disabled = false;
+      stream.getTracks().forEach(track => track.stop());
+    };
+
+    recorder.start();
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = "fr-FR";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = event => {
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const phrase = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalText += phrase + " ";
+          } else {
+            interim += phrase;
+          }
+        }
+        result.value = finalText + interim;
+        textBtn.disabled = !result.value.trim();
+      };
+
+      recognition.onerror = event => {
+        status.textContent = "Erreur de transcription : " + event.error;
+      };
+
+      recognition.start();
+      status.textContent = "Enregistrement et transcription en cours...";
+    } else {
+      status.textContent = "Enregistrement en cours. La transcription vocale n'est pas disponible dans ce navigateur.";
+    }
+
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    audioBtn.disabled = true;
+    textBtn.disabled = true;
+
+  } catch (error) {
+    status.textContent = "Erreur : " + error.message;
+  }
+};
+
+stopBtn.onclick = () => {
+  if (recognition) {
+    try { recognition.stop(); } catch (error) {}
+  }
+
+  if (recorder && recorder.state !== "inactive") {
+    recorder.stop();
+  }
+
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  status.textContent = "Enregistrement arrêté. Tu peux télécharger le son et le texte.";
+};
+
+audioBtn.onclick = () => {
+  if (!audioBlob) return;
+  const url = URL.createObjectURL(audioBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "mon-enregistrement.webm";
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+textBtn.onclick = () => {
+  const blob = new Blob([result.value], {
+    type: "text/plain;charset=utf-8"
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "transcription.txt";
+  link.click();
+  URL.revokeObjectURL(url);
+};
+</script>
+</body>
+</html>
