@@ -1,4 +1,3 @@
-
 name: Construire APK Android
 
 on:
@@ -32,19 +31,29 @@ jobs:
       - name: Installer Android SDK
         uses: android-actions/setup-android@v4
 
+      - name: Recuperer la cle de signature
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release-key.jks
+          test -s android/app/release-key.jks
+
       - name: Synchroniser Capacitor
         run: npx cap sync android
 
       - name: Autoriser Gradle
         run: chmod +x android/gradlew
 
-      - name: Construire APK
+      - name: Construire APK signe
         working-directory: android
-        run: ./gradlew assembleDebug
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
 
       - name: Recuperer le fichier APK
         uses: actions/upload-artifact@v4
         with:
           name: application-transcription
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-
+          path: android/app/build/outputs/apk/release/app-release.apk
