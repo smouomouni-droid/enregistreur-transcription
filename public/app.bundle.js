@@ -642,12 +642,6 @@ var require_app = __commonJS({
         chunks = [];
         audioBlob = null;
         result.value = "";
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) chunks.push(event.data);
-        };
-        mediaRecorder.start();
         await SpeechRecognition.start({
           language: "fr-FR",
           partialResults: true,
