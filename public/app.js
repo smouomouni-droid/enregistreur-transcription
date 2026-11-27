@@ -67,7 +67,8 @@ startBtn.onclick = async () => {
       language: "fr-FR",
       partialResults: true,
       popup: false,
-      maxResults: 1
+      maxResults: 5,
+      keepListeningMs: 60000
     });
 
     startBtn.disabled = true;

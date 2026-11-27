@@ -652,7 +652,8 @@ var require_app = __commonJS({
           language: "fr-FR",
           partialResults: true,
           popup: false,
-          maxResults: 1
+          maxResults: 5,
+          keepListeningMs: 6e4
         });
         startBtn.disabled = true;
         stopBtn.disabled = false;
