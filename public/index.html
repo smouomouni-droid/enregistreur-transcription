@@ -3,30 +3,106 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Enregistreur et transcription</title>
+<meta name="theme-color" content="#081426">
+<title>Transcription vocale</title>
 <style>
-body{font-family:Arial;background:#17152b;color:white;padding:20px;text-align:center}
-h1{color:#c5a7ff}
-button{padding:15px;margin:8px;border:0;border-radius:10px;font-size:16px;background:#7654d6;color:white}
+*{box-sizing:border-box}
+body{margin:0;padding:18px;font-family:Arial,sans-serif;background:linear-gradient(145deg,#081426,#102b49);color:white;min-height:100vh}
+header{text-align:center;padding:15px}
+header h1{font-size:25px;margin:5px}
+header p{color:#a9c5e8}
+.page{display:none;max-width:600px;margin:auto}
+.page.active{display:block}
+.card{background:#142b46;border:1px solid #294665;border-radius:18px;padding:20px;margin:15px 0}
+h2{font-size:20px}
+button,select{border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:bold;cursor:pointer}
 button:disabled{opacity:.4}
-textarea{width:95%;height:180px;margin-top:15px;border-radius:10px;padding:10px;font-size:16px}
-#status{margin:20px;color:#b8a4ff}
+.primary{background:#1689ff;color:white}
+.secondary{background:#294665;color:white}
+.danger{background:#a93649;color:white}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}
+.actions button{flex:1}
+#start{display:block;width:110px;height:110px;border-radius:50%;margin:25px auto;font-size:38px}
+#status{text-align:center;color:#a9c5e8;min-height:25px}
+textarea{width:100%;min-height:190px;background:#091a2d;color:white;border:1px solid #426184;border-radius:12px;padding:14px;font-size:16px;resize:vertical}
+nav{position:fixed;bottom:0;left:0;right:0;background:#091a2d;display:flex;justify-content:space-around;padding:12px 5px;border-top:1px solid #294665}
+nav button{background:transparent;color:#a9c5e8;padding:10px 8px;font-size:13px}
+nav button.active{color:#39a1ff}
+body{padding-bottom:85px}
+.item{background:#091a2d;padding:14px;border-radius:12px;margin:10px 0}
+.item button{margin:5px 5px 0 0}
+label{display:block;margin:18px 0 8px}
+select{width:100%;background:#091a2d;color:white;border:1px solid #426184}
+.small{color:#a9c5e8;font-size:13px}
 </style>
 </head>
 <body>
-<h1>Enregistreur et transcription</h1>
-<p>Enregistre ta voix et transforme-la automatiquement en texte.</p>
+<header>
+<h1>🎙️ Transcription vocale</h1>
+<p>Transforme ta voix en texte</p>
+</header>
 
-<button id="start">🎙️ Démarrer l'enregistrement</button>
-<button id="stop" disabled>⏹️ Arrêter et transcrire</button>
-<p id="status">Prêt à enregistrer.</p>
+<main>
+<section id="home" class="page active">
+<div class="card">
+<h2>Nouvelle transcription</h2>
+<button id="start" class="primary">🎙️</button>
+<p id="status">Prêt à écouter.</p>
+<div class="actions">
+<button id="stop" class="secondary" disabled>Arrêter</button>
+</div>
+</div>
+<div class="card">
+<h2>Ton texte</h2>
+<textarea id="result" placeholder="La transcription apparaîtra ici..."></textarea>
+<div class="actions">
+<button id="copyText" class="secondary">Copier</button>
+<button id="saveText" class="secondary">Enregistrer</button>
+<button id="downloadText" class="primary">Télécharger</button>
+</div>
+</div>
+</section>
 
-<button id="audio" disabled>Télécharger le son</button>
-<h3>Texte transcrit</h3>
-<textarea id="result" placeholder="Le texte apparaîtra ici..."></textarea>
-<br>
-<button id="downloadText">Télécharger le texte</button>
+<section id="history" class="page">
+<div class="card">
+<h2>Historique</h2>
+<p class="small">Retrouve ici tes textes enregistrés sur ce téléphone.</p>
+<div id="historyList"></div>
+<button id="clearHistory" class="danger">Tout effacer</button>
+</div>
+</section>
+
+<section id="settings" class="page">
+<div class="card">
+<h2>Paramètres</h2>
+<label for="theme">Thème de l'application</label>
+<select id="theme">
+<option value="dark">Sombre</option>
+<option value="light">Clair</option>
+</select>
+
+<label for="fontSize">Taille du texte</label>
+<select id="fontSize">
+<option value="16">Normale</option>
+<option value="14">Petite</option>
+<option value="20">Grande</option>
+</select>
+
+<label>
+<input type="checkbox" id="autosave">
+Sauvegarder automatiquement les transcriptions
+</label>
+<p class="small">Tes préférences sont conservées sur ton téléphone.</p>
+</div>
+</section>
+</main>
+
+<nav>
+<button class="active" data-page="home">🏠 Accueil</button>
+<button data-page="history">📚 Historique</button>
+<button data-page="settings">⚙️ Paramètres</button>
+</nav>
 
 <script type="module" src="./app.bundle.js"></script>
 </body>
-</html>
+</html>cd ~/transcription && cp public/app.js public/app.js.avant-historiquecd ~/transcription && cat > public/app.js <<'EOF'

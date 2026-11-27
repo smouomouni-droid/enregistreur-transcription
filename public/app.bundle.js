@@ -604,43 +604,156 @@ var require_app = __commonJS({
   "public/app.js"() {
     init_esm();
     init_dist();
-    var startBtn = document.getElementById("start");
-    var stopBtn = document.getElementById("stop");
-    var audioBtn = document.getElementById("audio");
-    var downloadTextBtn = document.getElementById("downloadText");
-    var result = document.getElementById("result");
-    var status = document.getElementById("status");
-    var audioBlob = null;
-    var mediaRecorder = null;
-    var chunks = [];
+    var $ = (id) => document.getElementById(id);
+    var startBtn = $("start");
+    var stopBtn = $("stop");
+    var result = $("result");
+    var status = $("status");
+    var copyBtn = $("copyText");
+    var saveBtn = $("saveText");
+    var downloadBtn = $("downloadText");
+    var clearBtn = $("clearHistory");
+    var themeSelect = $("theme");
+    var fontSelect = $("fontSize");
+    var autosaveCheck = $("autosave");
     var isNative = Capacitor.isNativePlatform();
+    var listening = false;
+    var history = [];
+    function loadHistory() {
+      try {
+        history = JSON.parse(localStorage.getItem("transcription_history") || "[]");
+        if (!Array.isArray(history)) history = [];
+      } catch {
+        history = [];
+      }
+    }
+    function saveHistory() {
+      localStorage.setItem("transcription_history", JSON.stringify(history));
+    }
+    function addHistory(text) {
+      text = text.trim();
+      if (!text) return;
+      history.unshift({
+        text,
+        date: (/* @__PURE__ */ new Date()).toLocaleString("fr-FR")
+      });
+      history = history.slice(0, 100);
+      saveHistory();
+      renderHistory();
+    }
+    function renderHistory() {
+      const container = $("historyList");
+      if (!container) return;
+      container.replaceChildren();
+      if (!history.length) {
+        container.textContent = "Aucune transcription enregistr\xE9e.";
+        return;
+      }
+      history.forEach((item, index) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        const date = document.createElement("p");
+        date.className = "small";
+        date.textContent = item.date;
+        const text = document.createElement("p");
+        text.textContent = item.text;
+        const button = document.createElement("button");
+        button.textContent = "Ouvrir";
+        button.className = "secondary";
+        button.onclick = () => {
+          result.value = item.text;
+          document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
+          $("home").classList.add("active");
+          document.querySelectorAll("[data-page]").forEach((b) => b.classList.remove("active"));
+          document.querySelector('[data-page="home"]')?.classList.add("active");
+          status.textContent = "Transcription charg\xE9e.";
+        };
+        card.append(date, text, button);
+        container.append(card);
+      });
+    }
+    function applySettings() {
+      const theme = localStorage.getItem("app_theme") || "dark";
+      const font = localStorage.getItem("app_font") || "16";
+      const autosave = localStorage.getItem("app_autosave") !== "false";
+      const light = theme === "light";
+      themeSelect.value = theme;
+      fontSelect.value = font;
+      autosaveCheck.checked = autosave;
+      document.body.style.background = light ? "#f2f5fa" : "linear-gradient(145deg,#081426,#102b49)";
+      document.body.style.color = light ? "#202b3c" : "#ffffff";
+      document.querySelectorAll(".card").forEach((card) => {
+        card.style.background = light ? "#ffffff" : "#142b46";
+        card.style.color = light ? "#202b3c" : "#ffffff";
+        card.style.borderColor = light ? "#d5deea" : "#294665";
+      });
+      result.style.background = light ? "#ffffff" : "#091a2d";
+      result.style.color = light ? "#202b3c" : "#ffffff";
+      result.style.borderColor = light ? "#cbd5e1" : "#426184";
+      result.style.fontSize = font + "px";
+      document.querySelectorAll("nav").forEach((nav) => {
+        nav.style.background = light ? "#ffffff" : "#091a2d";
+        nav.style.borderColor = light ? "#d5deea" : "#294665";
+      });
+      document.querySelectorAll("nav button").forEach((button) => {
+        button.style.color = light ? "#334155" : "#a9c5e8";
+      });
+      document.querySelectorAll("select").forEach((select) => {
+        select.style.background = light ? "#ffffff" : "#091a2d";
+        select.style.color = light ? "#202b3c" : "#ffffff";
+        select.style.borderColor = light ? "#cbd5e1" : "#426184";
+      });
+      document.querySelectorAll(".small, #status, header p").forEach((element) => {
+        element.style.color = light ? "#526176" : "#a9c5e8";
+      });
+    }
+    themeSelect.onchange = () => {
+      localStorage.setItem("app_theme", themeSelect.value);
+      applySettings();
+    };
+    fontSelect.onchange = () => {
+      localStorage.setItem("app_font", fontSelect.value);
+      applySettings();
+    };
+    autosaveCheck.onchange = () => {
+      localStorage.setItem("app_autosave", String(autosaveCheck.checked));
+    };
+    document.querySelectorAll("[data-page]").forEach((button) => {
+      button.onclick = () => {
+        const page = button.dataset.page;
+        document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
+        $(page)?.classList.add("active");
+        document.querySelectorAll("[data-page]").forEach((b) => b.classList.remove("active"));
+        button.classList.add("active");
+        if (page === "history") renderHistory();
+      };
+    });
     if (!isNative) {
-      status.textContent = "Installe l'APK Android pour utiliser la reconnaissance vocale.";
+      status.textContent = "Installe l\u2019APK Android pour utiliser la reconnaissance vocale.";
     }
     SpeechRecognition.addListener("partialResults", (event) => {
       const text = event.accumulatedText || ((event.accumulated || "") + " " + (event.matches?.[0] || "")).trim();
       if (text) result.value = text;
     });
     SpeechRecognition.addListener("error", (event) => {
-      status.textContent = "Erreur vocale : " + event.message;
+      listening = false;
+      status.textContent = "Erreur vocale : " + (event.message || "service indisponible");
       startBtn.disabled = false;
       stopBtn.disabled = true;
     });
     startBtn.onclick = async () => {
       try {
         if (!isNative) {
-          throw new Error("Cette fonction n\xE9cessite l'APK Android.");
+          throw new Error("Cette fonction n\xE9cessite l\u2019APK Android.");
         }
         const permission = await SpeechRecognition.requestPermissions();
         if (permission.speechRecognition !== "granted") {
-          throw new Error("Autorisation du microphone refus\xE9e.");
+          throw new Error("Autorisation de reconnaissance vocale refus\xE9e.");
         }
         const available = await SpeechRecognition.available();
         if (!available.available) {
           throw new Error("Aucun service de reconnaissance vocale disponible.");
         }
-        chunks = [];
-        audioBlob = null;
         result.value = "";
         await SpeechRecognition.start({
           language: "fr-FR",
@@ -649,10 +762,10 @@ var require_app = __commonJS({
           maxResults: 5,
           keepListeningMs: 6e4
         });
+        listening = true;
         startBtn.disabled = true;
         stopBtn.disabled = false;
-        audioBtn.disabled = true;
-        status.textContent = "Je t'\xE9coute... Parle maintenant.";
+        status.textContent = "Je t\u2019\xE9coute... Parle maintenant.";
       } catch (error) {
         status.textContent = "Erreur : " + error.message;
         startBtn.disabled = false;
@@ -661,46 +774,52 @@ var require_app = __commonJS({
     };
     stopBtn.onclick = async () => {
       try {
-        await SpeechRecognition.stop();
-        if (mediaRecorder && mediaRecorder.state !== "inactive") {
-          await new Promise((resolve) => {
-            mediaRecorder.onstop = resolve;
-            mediaRecorder.stop();
-          });
+        if (listening) {
+          await SpeechRecognition.stop();
         }
-        if (mediaRecorder?.stream) {
-          mediaRecorder.stream.getTracks().forEach((track) => track.stop());
-        }
-        if (chunks.length) {
-          audioBlob = new Blob(chunks, {
-            type: mediaRecorder.mimeType || "audio/webm"
-          });
-          audioBtn.disabled = false;
-        }
+        listening = false;
         const last = await SpeechRecognition.getLastPartialResult();
         if (last.available && last.text) {
           result.value = last.text;
         }
-        status.textContent = result.value ? "Transcription termin\xE9e !" : "Aucune parole reconnue. R\xE9essaie.";
+        status.textContent = result.value.trim() ? "Transcription termin\xE9e !" : "Aucune parole reconnue. R\xE9essaie.";
+        if (result.value.trim() && autosaveCheck.checked) {
+          addHistory(result.value);
+        }
       } catch (error) {
         status.textContent = "Erreur : " + error.message;
       } finally {
+        listening = false;
         startBtn.disabled = false;
         stopBtn.disabled = true;
       }
     };
-    audioBtn.onclick = () => {
-      if (!audioBlob) return;
-      const url = URL.createObjectURL(audioBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "mon-enregistrement.webm";
-      link.click();
-      URL.revokeObjectURL(url);
+    copyBtn.onclick = async () => {
+      const text = result.value.trim();
+      if (!text) {
+        status.textContent = "Aucun texte \xE0 copier.";
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        status.textContent = "Texte copi\xE9 !";
+      } catch {
+        result.select();
+        const copied = document.execCommand("copy");
+        status.textContent = copied ? "Texte copi\xE9 !" : "Copie impossible.";
+      }
     };
-    downloadTextBtn.onclick = () => {
+    saveBtn.onclick = () => {
       if (!result.value.trim()) {
-        status.textContent = "Il n'y a pas encore de texte \xE0 t\xE9l\xE9charger.";
+        status.textContent = "Aucun texte \xE0 enregistrer.";
+        return;
+      }
+      addHistory(result.value);
+      status.textContent = "Transcription enregistr\xE9e dans l\u2019historique.";
+    };
+    downloadBtn.onclick = () => {
+      if (!result.value.trim()) {
+        status.textContent = "Aucun texte \xE0 t\xE9l\xE9charger.";
         return;
       }
       const blob = new Blob([result.value], {
@@ -712,7 +831,22 @@ var require_app = __commonJS({
       link.download = "ma-transcription.txt";
       link.click();
       URL.revokeObjectURL(url);
+      status.textContent = "T\xE9l\xE9chargement termin\xE9.";
     };
+    clearBtn.onclick = () => {
+      if (!history.length) {
+        status.textContent = "L\u2019historique est d\xE9j\xE0 vide.";
+        return;
+      }
+      history = [];
+      saveHistory();
+      renderHistory();
+      status.textContent = "Historique effac\xE9.";
+    };
+    loadHistory();
+    applySettings();
+    renderHistory();
+    stopBtn.disabled = true;
   }
 });
 export default require_app();
